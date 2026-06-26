@@ -1,0 +1,127 @@
+{
+  "theme": "Light",
+  "archetype": "4 (Swiss & High-Contrast)",
+  "emotional_tone": "Precise, authoritative, functional, industrial.",
+  "design_philosophy": "A 'Control Room' aesthetic tailored for high-density file and QR code management. Rejects soft, airy SaaS trends in favor of sharp geometry, bold monochromatic structure, and aggressive accent colors to guide focus. Every pixel must feel deliberate, like heavy machinery.",
+  "typography": {
+    "fonts": {
+      "heading": "Chivo",
+      "body": "IBM Plex Sans",
+      "mono": "IBM Plex Mono"
+    },
+    "font_urls": [
+      "https://fonts.googleapis.com/css2?family=Chivo:wght@400;700;900&display=swap",
+      "https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&display=swap",
+      "https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap"
+    ],
+    "scales": {
+      "h1": "text-4xl sm:text-5xl font-heading font-black tracking-tighter leading-none text-black",
+      "h2": "text-2xl sm:text-3xl font-heading font-bold tracking-tight text-black",
+      "h3": "text-xl sm:text-2xl font-heading font-bold tracking-tight text-black",
+      "h4": "text-lg font-heading font-bold tracking-tight text-black",
+      "body": "text-base font-sans text-zinc-800 leading-relaxed",
+      "body_sm": "text-sm font-sans text-zinc-600",
+      "mono_label": "text-xs font-mono uppercase tracking-[0.2em] text-zinc-500",
+      "data_value": "text-2xl sm:text-3xl font-mono font-semibold text-black"
+    }
+  },
+  "colors": {
+    "background": {
+      "default": "#F4F4F5",
+      "paper": "#FFFFFF",
+      "sidebar": "#0A0A0A"
+    },
+    "foreground": {
+      "default": "#000000",
+      "muted": "#52525B",
+      "inverse": "#FFFFFF"
+    },
+    "primary": {
+      "DEFAULT": "#FF4500",
+      "hover": "#CC3700",
+      "foreground": "#FFFFFF"
+    },
+    "border": {
+      "default": "#E4E4E7",
+      "strong": "#000000"
+    },
+    "chart": {
+      "color1": "#FF4500",
+      "color2": "#000000",
+      "color3": "#A1A1AA",
+      "color4": "#D4D4D8",
+      "color5": "#52525B"
+    }
+  },
+  "spacing_and_layout": {
+    "grid_system": {
+      "dashboard": "grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4",
+      "file_grid": "grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4"
+    },
+    "container_padding": "p-6 md:p-8 lg:p-12",
+    "card_padding": "p-4 sm:p-6",
+    "surface_styles": {
+      "card": "bg-white border border-zinc-200 rounded-none shadow-none",
+      "sidebar": "bg-[#0A0A0A] border-r border-black rounded-none text-white",
+      "header": "bg-white border-b border-zinc-200 rounded-none sticky top-0 z-50",
+      "modal": "bg-white border-2 border-black rounded-none shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]"
+    }
+  },
+  "component_rules": {
+    "buttons": {
+      "primary": "bg-[#FF4500] text-white hover:bg-black hover:text-white rounded-none border-none font-mono uppercase text-sm tracking-wider font-semibold transition-colors duration-200",
+      "secondary": "bg-white text-black border border-black hover:bg-zinc-100 rounded-none font-mono uppercase text-sm tracking-wider transition-colors duration-200",
+      "ghost": "bg-transparent text-zinc-600 hover:text-black hover:bg-zinc-100 rounded-none"
+    },
+    "inputs": {
+      "default": "bg-white border border-zinc-300 rounded-none focus:ring-0 focus:border-black focus:outline-none placeholder:text-zinc-400 font-sans text-sm",
+      "search": "bg-zinc-100 border-none rounded-none focus:ring-2 focus:ring-black font-sans text-sm"
+    },
+    "cards": {
+      "stat_card": "flex flex-col gap-2 p-6 bg-white border border-zinc-200 hover:border-black transition-colors rounded-none",
+      "file_card": "group flex flex-col items-center gap-3 p-4 bg-white border border-zinc-200 hover:border-[#FF4500] hover:shadow-[4px_4px_0px_0px_rgba(255,69,0,0.2)] transition-all cursor-pointer rounded-none"
+    },
+    "tables": {
+      "wrapper": "w-full border-collapse border border-zinc-200",
+      "header": "bg-zinc-50 font-mono text-xs uppercase tracking-widest text-zinc-600 border-b border-zinc-200 text-left",
+      "row": "border-b border-zinc-100 hover:bg-zinc-50 transition-colors",
+      "cell": "p-3 sm:p-4 text-sm font-sans text-zinc-800"
+    },
+    "charts": {
+      "style": "Use Recharts. Lines must be type='linear' (sharp corners, no curves). Tooltips must have rounded-none, black borders, and use IBM Plex Mono for values."
+    },
+    "qr_preview": {
+      "container": "relative p-8 bg-zinc-50 border border-zinc-200 flex justify-center items-center",
+      "corners": "absolute top-0 left-0 w-4 h-4 border-t-2 border-l-2 border-black, absolute top-0 right-0 w-4 h-4 border-t-2 border-r-2 border-black, absolute bottom-0 left-0 w-4 h-4 border-b-2 border-l-2 border-black, absolute bottom-0 right-0 w-4 h-4 border-b-2 border-r-2 border-black"
+    },
+    "breadcrumbs": {
+      "style": "font-mono text-xs uppercase tracking-widest text-zinc-500 flex items-center space-x-2",
+      "separator": "text-zinc-300"
+    }
+  },
+  "icons": {
+    "library": "@phosphor-icons/react",
+    "weight": "regular",
+    "instructions": "Use Phosphor Icons for a crisp, technical look. Avoid rounded, bubbly icons."
+  },
+  "media": {
+    "login_hero": {
+      "url": "https://images.pexels.com/photos/35516949/pexels-photo-35516949.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+      "description": "Vintage industrial control panel with colorful buttons. Used on the split-screen login/register page to reinforce the 'Control Room' aesthetic."
+    }
+  },
+  "accessibility_and_testing": {
+    "testing_attributes": "All interactive elements, buttons, links, table rows, and form inputs MUST have a `data-testid` attribute using kebab-case role-based naming (e.g., `data-testid='upload-file-button'`, `data-testid='login-submit'`).",
+    "contrast": "Ensure pure black text on white backgrounds, and white text on the #FF4500 primary color. Hover states must have higher contrast.",
+    "motion": "Keep animations minimal and snappy. Avoid long, slow fades. Use fast transition durations (e.g., duration-150 or duration-200)."
+  },
+  "instructions_to_main_agent": [
+    "Install required fonts from Google Fonts in the HTML head or global CSS.",
+    "Install @phosphor-icons/react for iconography.",
+    "Do not use generic Shadcn rounding (remove global radius variable or set to 0).",
+    "Build the dashboard using a CSS grid. Sidebar should be fixed width (e.g., 250px) on desktop and collapsible on mobile.",
+    "For the File Browser: Implement a breadcrumb navigation at the top, a grid/list toggle, and a dropzone area with a dashed border.",
+    "For the QR Scanner: Present the webcam feed inside a stark, bordered container resembling a scanning reticle (use the qr_preview corner styles).",
+    "Use Recharts for the Dashboard stats (Upload trends, user activity). Stick to sharp line charts and stark bar charts without border radius."
+  ]
+}
