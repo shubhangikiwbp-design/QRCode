@@ -4,6 +4,14 @@ import { LineChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis, CartesianG
 import { FileArrowUp, FolderSimple, QrCode, Users, HardDrives, ChartLineUp } from "@phosphor-icons/react";
 import PageHeader from "@/components/PageHeader";
 
+// Module-level constants so React doesn't re-create on every render.
+const AXIS_LINE = { stroke: "#000" };
+const AXIS_TICK = { fontFamily: "IBM Plex Mono", fontSize: 11 };
+const TOOLTIP_STYLE = { border: "2px solid #000", borderRadius: 0, fontFamily: "IBM Plex Mono", fontSize: 12 };
+const LINE_DOT = { fill: "#000", r: 4 };
+const LINE_ACTIVE_DOT = { r: 6, fill: "#FF4500" };
+const formatDateTick = (d) => d.slice(5);
+
 const StatCard = ({ label, value, icon: Icon, testid }) => (
   <div data-testid={testid} className="flex items-start justify-between p-6 bg-white border border-zinc-200 hover:border-black transition-colors">
     <div>
@@ -20,7 +28,11 @@ export default function Dashboard() {
   const [stats, setStats] = useState(null);
 
   useEffect(() => {
-    api.get("/dashboard/stats").then(({ data }) => setStats(data));
+    let cancelled = false;
+    api.get("/dashboard/stats")
+      .then(({ data }) => { if (!cancelled) setStats(data); })
+      .catch((e) => console.error("dashboard stats failed", e));
+    return () => { cancelled = true; };
   }, []);
 
   if (!stats) return <div className="p-12 font-mono text-sm">LOADING STATS…</div>;
@@ -49,10 +61,10 @@ export default function Dashboard() {
           <ResponsiveContainer>
             <LineChart data={stats.trend}>
               <CartesianGrid stroke="#E4E4E7" strokeDasharray="0" vertical={false} />
-              <XAxis dataKey="date" stroke="#52525B" tickLine={false} axisLine={{ stroke: "#000" }} tick={{ fontFamily: "IBM Plex Mono", fontSize: 11 }} tickFormatter={(d) => d.slice(5)} />
-              <YAxis stroke="#52525B" tickLine={false} axisLine={{ stroke: "#000" }} tick={{ fontFamily: "IBM Plex Mono", fontSize: 11 }} allowDecimals={false} />
-              <Tooltip contentStyle={{ border: "2px solid #000", borderRadius: 0, fontFamily: "IBM Plex Mono", fontSize: 12 }} />
-              <Line type="linear" dataKey="uploads" stroke="#FF4500" strokeWidth={2.5} dot={{ fill: "#000", r: 4 }} activeDot={{ r: 6, fill: "#FF4500" }} />
+              <XAxis dataKey="date" stroke="#52525B" tickLine={false} axisLine={AXIS_LINE} tick={AXIS_TICK} tickFormatter={formatDateTick} />
+              <YAxis stroke="#52525B" tickLine={false} axisLine={AXIS_LINE} tick={AXIS_TICK} allowDecimals={false} />
+              <Tooltip contentStyle={TOOLTIP_STYLE} />
+              <Line type="linear" dataKey="uploads" stroke="#FF4500" strokeWidth={2.5} dot={LINE_DOT} activeDot={LINE_ACTIVE_DOT} />
             </LineChart>
           </ResponsiveContainer>
         </div>

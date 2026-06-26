@@ -15,7 +15,7 @@ export default function Scanner() {
   useEffect(() => {
     return () => {
       if (scannerRef.current) {
-        scannerRef.current.stop().catch(() => {});
+        scannerRef.current.stop().catch((e) => console.error("scanner stop failed", e));
         scannerRef.current.clear();
       }
     };
@@ -59,7 +59,8 @@ export default function Scanner() {
   const stop = async () => {
     setScanning(false);
     if (scannerRef.current) {
-      try { await scannerRef.current.stop(); scannerRef.current.clear(); } catch {}
+      try { await scannerRef.current.stop(); scannerRef.current.clear(); }
+      catch (e) { console.error("scanner stop failed", e); }
       scannerRef.current = null;
     }
   };

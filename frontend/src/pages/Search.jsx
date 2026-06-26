@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { api, API, formatBytes } from "@/lib/api";
 import PageHeader from "@/components/PageHeader";
 import { MagnifyingGlass, FolderSimple, File as FileIcon, DownloadSimple } from "@phosphor-icons/react";
@@ -13,7 +13,7 @@ export default function Search() {
   const [result, setResult] = useState({ folders: [], files: [] });
   const [loading, setLoading] = useState(false);
 
-  const run = async () => {
+  const run = useCallback(async () => {
     setLoading(true);
     try {
       const { data } = await api.get("/search", {
@@ -21,9 +21,9 @@ export default function Search() {
       });
       setResult(data);
     } finally { setLoading(false); }
-  };
+  }, [q, fileType, from, to]);
 
-  useEffect(() => { run(); /* eslint-disable-next-line */ }, []);
+  useEffect(() => { run(); }, [run]);
 
   return (
     <div className="p-8 lg:p-12">
