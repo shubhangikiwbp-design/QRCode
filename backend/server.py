@@ -241,7 +241,7 @@ async def create_user(data: UserCreateIn, _: dict = Depends(require_role("super_
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
     await db.users.insert_one(new_user)
-    return {k: v for k, v in new_user.items() if k != "password_hash"}
+    return {k: v for k, v in new_user.items() if k not in ("password_hash", "_id")}
 
 @api.delete("/users/{user_id}")
 async def delete_user(user_id: str, current: dict = Depends(require_role("super_admin"))):
