@@ -1,0 +1,37 @@
+{
+  "summary": "First-finish smoke test of QR File Management. Backend: 12/13 endpoints verified (auth/login, /auth/me with+without token, register, folder create/list/path, file upload+auto-QR, qr/image PNG, qr/svg SVG, file list, authed download, public download, search, dashboard stats with 7-day trend, audit logs, users-403 for non-super-admin, role isolation, cascade folder delete). Frontend: full happy path passes - login as super admin, dashboard renders with stats and 7-day trend chart, Files page folder create + click navigates to /files/{id}, file upload via [data-testid=file-input] shows file card, preview modal opens with QR image + PNG/SVG download links, nav to QR/Search/Users/Logs/Dashboard works, logout returns to /login.",
+  "tested_scope": ["backend", "frontend", "auth", "integration"],
+  "passed": [
+    "POST /api/auth/login (super admin) -> 200 + token",
+    "GET /api/auth/me with Bearer -> 200; without -> 401",
+    "POST /api/auth/register -> 200 (default role user)",
+    "POST /api/folder/create -> 200 (field is folder_name)",
+    "GET /api/folder/list -> 200, normal user sees 0 of super-admin folders (role isolation OK)",
+    "GET /api/folder/{id}/path -> 200 with breadcrumb chain",
+    "POST /api/file/upload -> 200, response includes qr.download_url and qr_image_path",
+    "GET /api/qr/image/{id} -> 200 image/png; GET /api/qr/svg/{id} -> 200 image/svg+xml",
+    "GET /api/file/list?folder_id=... -> 200 with count=1",
+    "GET /api/file/download/{id} (auth) and GET /api/file/public/{id} (no auth) both return correct bytes",
+    "GET /api/search?q=... -> 200 returns {folders, files}",
+    "GET /api/dashboard/stats -> 200 with keys total_users/files/folders/qrs/today_uploads/storage_bytes/trend; trend length = 7",
+    "GET /api/logs -> 200 with enriched entries",
+    "POST /api/users as normal user -> 403 (correct)",
+    "DELETE /api/folder/{id} cascades: child file public endpoint returns 404 afterwards",
+    "Frontend: Login -> Dashboard, Files (create folder, click, upload, preview modal w/ QR + PNG+SVG download), navigate QR/Search/Users/Logs, Logout"
+  ],
+  "failed": [
+    {
+      "area": "backend - POST /api/users (super admin create)",
+      "issue": "Endpoint returns HTTP 500 due to MongoDB ObjectId in response. FastAPI jsonable_encoder fails: \"ValueError: [TypeError(\\\"'ObjectId' object is not iterable\\\"), TypeError('vars() argument must have __dict__ attribute')]\". The handler likely returns the raw Mongo insert doc instead of projecting with {\"_id\": 0} or stripping _id.",
+      "evidence": "curl -X POST /api/users (Bearer super-admin token) -> HTTP 500 'Internal Server Error'. Traceback in /var/log/supervisor/backend.err.log at fastapi/encoders.py line 287/330. Handler at server.py line 229 (create_user).",
+      "priority": "HIGH"
+    }
+  ],
+  "action_items": [
+    "Fix POST /api/users in /app/backend/server.py (~line 229 create_user): exclude _id from returned document (e.g., use {'_id': 0} projection on the find_one after insert, or build a dict from the validated model excluding _id) so FastAPI can serialize the response. DELETE /api/users/{id} likely needs the same review for any inserted/found docs."
+  ],
+  "success_rate": {"backend": "94%", "frontend": "100%"},
+  "retest_needed": true,
+  "full_testing_deferred": true,
+  "test_credentials": "Read from /app/memory/test_credentials.md - admin@qrfile.com / Admin@123 (super_admin) - verified working"
+}
