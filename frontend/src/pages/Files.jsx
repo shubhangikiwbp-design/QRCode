@@ -4,6 +4,7 @@ import { api, API, formatBytes } from "@/lib/api";
 import { toast } from "sonner";
 import PageHeader from "@/components/PageHeader";
 import FilePreviewDialog from "@/components/FilePreviewDialog";
+import DuplicateFolderDialog from "@/components/DuplicateFolderDialog";
 import { FolderSimple, FilePdf, FileDoc, FileXls, FileImage, FileZip, FileVideo, File as FileIcon, CaretRight, House, Plus, Trash, DownloadSimple, QrCode } from "@phosphor-icons/react";
 
 function fileIcon(ext) {
@@ -28,6 +29,7 @@ export default function Files() {
   const [dragOver, setDragOver] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [preview, setPreview] = useState(null);
+  const [duplicate, setDuplicate] = useState(null); // { folder_name, existing_id }
   const inputRef = useRef(null);
 
   const load = useCallback(async () => {
@@ -53,7 +55,19 @@ export default function Files() {
     try {
       await api.post("/folder/create", { folder_name: newName.trim(), parent_folder_id: folderId || null });
       setNewName(""); toast.success("Folder created"); load();
-    } catch (e) { toast.error(e.response?.data?.detail || "Failed"); }
+    } catch (err) {
+      const status = err.response?.status;
+      const detail = err.response?.data?.detail;
+      if (status === 409 && detail?.code === "folder_exists" && detail.existing_folder) {
+        setDuplicate({
+          folder_name: detail.existing_folder.folder_name,
+          existing_id: detail.existing_folder.id,
+        });
+      } else {
+        const msg = typeof detail === "string" ? detail : detail?.message || "Failed";
+        toast.error(msg);
+      }
+    }
     finally { setCreating(false); }
   };
 
@@ -191,6 +205,17 @@ export default function Files() {
       )}
 
       <FilePreviewDialog file={preview} onClose={() => setPreview(null)} />
+      <DuplicateFolderDialog
+        open={!!duplicate}
+        folderName={duplicate?.folder_name}
+        onCancel={() => setDuplicate(null)}
+        onConfirm={() => {
+          const id = duplicate.existing_id;
+          setDuplicate(null);
+          setNewName("");
+          navigate(`/files/${id}`);
+        }}
+      />
     </div>
   );
 }

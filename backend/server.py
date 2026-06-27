@@ -256,6 +256,21 @@ async def delete_user(user_id: str, current: dict = Depends(require_role("super_
 # ------------------- Folders -------------------
 @api.post("/folder/create")
 async def create_folder(data: FolderIn, user: dict = Depends(get_current_user)):
+    # Duplicate check — scoped to same parent folder AND same owner.
+    existing = await db.folders.find_one({
+        "folder_name": data.folder_name,
+        "parent_folder_id": data.parent_folder_id,
+        "created_by": user["id"],
+    }, {"_id": 0})
+    if existing:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "code": "folder_exists",
+                "message": f"A folder named '{data.folder_name}' already exists here.",
+                "existing_folder": {"id": existing["id"], "folder_name": existing["folder_name"]},
+            },
+        )
     folder = {
         "id": str(uuid.uuid4()),
         "folder_name": data.folder_name,
