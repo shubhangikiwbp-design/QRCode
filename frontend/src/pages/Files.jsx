@@ -109,11 +109,11 @@ export default function Files() {
 
       {/* Breadcrumbs */}
       <div className="flex items-center gap-2 mt-6 font-mono text-xs uppercase tracking-widest text-zinc-500 flex-wrap" data-testid="breadcrumbs">
-        <button onClick={() => navigate("/files")} className="flex items-center gap-1 hover:text-black"><House size={14} /> ROOT</button>
+        <button onClick={() => navigate("/qr-app/files")} className="flex items-center gap-1 hover:text-black"><House size={14} /> ROOT</button>
         {path.map((p) => (
           <React.Fragment key={p.id}>
             <CaretRight size={12} className="text-zinc-300" />
-            <button onClick={() => navigate(`/files/${p.id}`)} className="hover:text-black">{p.folder_name}</button>
+            <button onClick={() => navigate(`/qr-app/files/${p.id}`)} className="hover:text-black">{p.folder_name}</button>
           </React.Fragment>
         ))}
       </div>
@@ -213,7 +213,7 @@ export default function Files() {
           const id = duplicate.existing_id;
           setDuplicate(null);
           setNewName("");
-          navigate(`/files/${id}`);
+          navigate(`/qr-app/files/${id}`);
         }}
       />
     </div>

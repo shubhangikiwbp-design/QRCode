@@ -16,7 +16,7 @@ export default function Login() {
     setSubmitting(true);
     const res = await login(email, password);
     setSubmitting(false);
-    if (res.ok) { toast.success("Welcome back"); navigate("/"); }
+    if (res.ok) { toast.success("Welcome back"); navigate("/modules"); }
     else toast.error(res.error);
   };
 

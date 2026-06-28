@@ -14,7 +14,7 @@ export default function Register() {
     setSubmitting(true);
     const res = await register(form);
     setSubmitting(false);
-    if (res.ok) { toast.success("Account created"); navigate("/"); }
+    if (res.ok) { toast.success("Account created"); navigate("/modules"); }
     else toast.error(res.error);
   };
 
