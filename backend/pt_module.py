@@ -14,7 +14,7 @@ from typing import Optional, List, Literal
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 
 def utcnow_iso() -> str:
@@ -64,6 +64,8 @@ class TaxRatesIn(BaseModel):
 
 
 class PropertyIn(BaseModel):
+    model_config = ConfigDict(extra="allow")  # accept extended fields from the New Property Entry form
+
     property_no: str
     owner_name: str
     address: str
@@ -637,6 +639,246 @@ def build_pt_router(db, get_current_user, require_role, log_activity) -> APIRout
             b["property"] = pmap.get(b["property_id"])
         total = sum(b["tax_amount"] for b in bills)
         return {"count": len(bills), "total_outstanding": round(total, 2), "rows": bills}
+
+    # =====================================================================
+    # ARREARS — Past-dues entry for newly added properties
+    # =====================================================================
+    ARREARS_LINES = [
+        ("general_tax",                 "General Tax"),
+        ("education_cess_tax",          "Education Cess Tax"),
+        ("tree_tax",                    "Tree Tax"),
+        ("employment_guarantee_cess",   "Employment Guarantee Cess"),
+        ("solid_waste_management_fee",  "Solid Waste Management Fee"),
+        ("other",                       "Other"),
+        ("user_charges",                "User Charges"),
+        ("drainage_tax",                "Drainage Tax"),
+        ("fire_tax",                    "Fire Tax"),
+        ("interest_on_arrears",         "Interest on Arrears Bill"),
+    ]
+    ARREARS_KEYS = [k for k, _ in ARREARS_LINES]
+
+    @router.get("/arrears/schema")
+    async def arrears_schema(_: dict = Depends(get_current_user)):
+        # Returns the canonical line-items (id + label) so the UI can render the same table without hardcoding.
+        return [{"key": k, "label": label} for k, label in ARREARS_LINES]
+
+    @router.get("/property-lookup")
+    async def property_lookup(
+        search_type: str = "property_no",
+        value: str = "",
+        _: dict = Depends(get_current_user),
+    ):
+        # search_type: property_no | property_old_no | manual_property_no
+        if not value:
+            raise HTTPException(status_code=400, detail="value required")
+        field = {
+            "property_no": "property_no",
+            "property_old_no": "property_old_no",
+            "manual_property_no": "manual_property_no",
+        }.get(search_type)
+        if not field:
+            raise HTTPException(status_code=400, detail="Invalid search_type")
+        prop = await db.pt_properties.find_one({field: value}, {"_id": 0})
+        if not prop:
+            raise HTTPException(status_code=404, detail="Property not found")
+        return prop
+
+    def _arrears_total(doc: dict) -> float:
+        return round(sum(float(doc.get(k) or 0) for k in ARREARS_KEYS), 2)
+
+    @router.get("/arrears")
+    async def arrears_list(
+        property_id: Optional[str] = None,
+        bill_year: Optional[str] = None,
+        _: dict = Depends(get_current_user),
+    ):
+        flt: dict = {}
+        if property_id:
+            flt["property_id"] = property_id
+        if bill_year:
+            flt["bill_year"] = bill_year
+        items = await db.pt_arrears.find(flt, {"_id": 0}).sort("created_at", -1).limit(2000).to_list(2000)
+        pids = [x["property_id"] for x in items]
+        props = await db.pt_properties.find({"id": {"$in": pids}}, {"_id": 0}).to_list(5000)
+        pmap = {p["id"]: p for p in props}
+        for it in items:
+            it["property"] = pmap.get(it["property_id"])
+        return items
+
+    @router.get("/arrears/{id}")
+    async def arrears_get(id: str, _: dict = Depends(get_current_user)):
+        a = await db.pt_arrears.find_one({"id": id}, {"_id": 0})
+        if not a:
+            raise HTTPException(status_code=404, detail="Arrears entry not found")
+        a["property"] = await db.pt_properties.find_one({"id": a["property_id"]}, {"_id": 0})
+        return a
+
+    @router.post("/arrears")
+    async def arrears_create(data: dict, user: dict = Depends(get_current_user)):
+        if not data.get("property_id"):
+            raise HTTPException(status_code=400, detail="property_id required")
+        if not data.get("bill_no"):
+            raise HTTPException(status_code=400, detail="bill_no required")
+        if await db.pt_arrears.find_one({"bill_no": data["bill_no"]}):
+            raise HTTPException(status_code=409, detail="Bill No already exists for arrears")
+        prop = await db.pt_properties.find_one({"id": data["property_id"]}, {"_id": 0})
+        if not prop:
+            raise HTTPException(status_code=404, detail="Property not found")
+        doc = {
+            "id": str(uuid.uuid4()),
+            "property_id": prop["id"],
+            "bill_no": data["bill_no"],
+            "bill_year": data.get("bill_year") or "",
+            "bill_date": data.get("bill_date") or "",
+            "due_date": data.get("due_date") or "",
+            "remarks": data.get("remarks") or "",
+            "created_by": user["id"],
+            "created_at": utcnow_iso(),
+        }
+        for k in ARREARS_KEYS:
+            doc[k] = round(float(data.get(k) or 0), 2)
+        doc["total_amount"] = _arrears_total(doc)
+        await db.pt_arrears.insert_one(doc)
+        await log_activity(user["id"], "pt_arrears_create", doc["id"])
+        doc.pop("_id", None)
+        doc["property"] = prop
+        return doc
+
+    @router.put("/arrears/{id}")
+    async def arrears_update(id: str, data: dict, user: dict = Depends(get_current_user)):
+        existing = await db.pt_arrears.find_one({"id": id}, {"_id": 0})
+        if not existing:
+            raise HTTPException(status_code=404, detail="Arrears entry not found")
+        if data.get("bill_no") and data["bill_no"] != existing["bill_no"]:
+            if await db.pt_arrears.find_one({"bill_no": data["bill_no"]}):
+                raise HTTPException(status_code=409, detail="Bill No already exists")
+        patch = {
+            "bill_no": data.get("bill_no", existing["bill_no"]),
+            "bill_year": data.get("bill_year", existing.get("bill_year", "")),
+            "bill_date": data.get("bill_date", existing.get("bill_date", "")),
+            "due_date": data.get("due_date", existing.get("due_date", "")),
+            "remarks": data.get("remarks", existing.get("remarks", "")),
+            "updated_by": user["id"],
+            "updated_at": utcnow_iso(),
+        }
+        for k in ARREARS_KEYS:
+            patch[k] = round(float(data.get(k) if data.get(k) is not None else existing.get(k, 0)), 2)
+        merged = {**existing, **patch}
+        merged["total_amount"] = _arrears_total(merged)
+        await db.pt_arrears.update_one({"id": id}, {"$set": {**patch, "total_amount": merged["total_amount"]}})
+        await log_activity(user["id"], "pt_arrears_update", id)
+        return await arrears_get(id, user)
+
+    @router.delete("/arrears/{id}")
+    async def arrears_delete(id: str, user: dict = Depends(require_role("super_admin", "admin"))):
+        r = await db.pt_arrears.delete_one({"id": id})
+        if r.deleted_count == 0:
+            raise HTTPException(status_code=404, detail="Arrears entry not found")
+        await log_activity(user["id"], "pt_arrears_delete", id)
+        return {"ok": True}
+
+    @router.get("/reports/draft-assessment")
+    async def report_draft_assessment(
+        ward_id: Optional[str] = None,
+        zone_id: Optional[str] = None,
+        _: dict = Depends(get_current_user),
+    ):
+        flt: dict = {}
+        if ward_id: flt["ward_id"] = ward_id
+        if zone_id: flt["zone_id"] = zone_id
+        props = await db.pt_properties.find(flt, {"_id": 0}).sort("property_no", 1).limit(5000).to_list(5000)
+
+        wards = await db.pt_wards.find({}, {"_id": 0}).to_list(2000)
+        zones = await db.pt_zones.find({}, {"_id": 0}).to_list(2000)
+        cts   = await db.pt_construction_types.find({}, {"_id": 0}).to_list(2000)
+        uts   = await db.pt_usage_types.find({}, {"_id": 0}).to_list(2000)
+        wmap = {w["id"]: w for w in wards}
+        zmap = {z["id"]: z for z in zones}
+        cmap = {c["id"]: c for c in cts}
+        umap = {u["id"]: u for u in uts}
+
+        ward_label = None
+        zone_label = None
+        if ward_id and wmap.get(ward_id):
+            w = wmap[ward_id]; ward_label = f"{w['ward_no']} · {w['ward_name']}"
+        if zone_id and zmap.get(zone_id):
+            z = zmap[zone_id]; zone_label = f"{z['zone_no']} · {z['zone_name']}"
+
+        rows = []
+        totals = {"alv": 0.0, "rv": 0.0, "education": 0.0, "employment": 0.0, "tree": 0.0,
+                  "fire": 0.0, "sanitation": 0.0, "environment": 0.0, "street_light": 0.0, "total_tax": 0.0}
+        for i, p in enumerate(props, 1):
+            comp = p.get("computed") or {}
+            brk = comp.get("breakup") or {}
+            owners = p.get("owners") or []
+            primary = next((o for o in owners if o.get("owner_type") == "Primary"), owners[0] if owners else {})
+            mobile = primary.get("mobile") or p.get("mobile") or ""
+            aadhaar = primary.get("aadhaar") or ""
+            usage_name = umap.get(p.get("usage_type_id"), {}).get("name", "")
+            ct_name    = cmap.get(p.get("construction_type_id"), {}).get("name", "")
+            w_obj = wmap.get(p.get("ward_id"), {})
+            z_obj = zmap.get(p.get("zone_id"), {})
+
+            # tax-component mapping (existing engine has 5 components; map to PDF's 7 heads where possible)
+            education     = float(brk.get("education_cess") or 0)
+            tree          = float(brk.get("tree_cess") or 0)
+            sanitation    = float(brk.get("sewerage_tax") or 0)         # closest analogue
+            employment    = float(p.get("employment_guarantee_tax") or 0)
+            fire          = float(p.get("fire_tax") or 0)
+            environment   = float(p.get("environment_tax") or 0)
+            street_light  = float(p.get("street_light_tax") or 0)
+
+            row = {
+                "s_no": i,
+                "zone":              z_obj.get("zone_no", ""),
+                "zone_name":         z_obj.get("zone_name", ""),
+                "old_ward":          p.get("old_ward", ""),
+                "old_property_no":   p.get("property_old_no", ""),
+                "ward":              w_obj.get("ward_no", ""),
+                "ward_name":         w_obj.get("ward_name", ""),
+                "property_no":       p.get("property_no", ""),
+                "city_survey_no":    p.get("city_survey_no", ""),
+                "property_desc":     p.get("property_description") or p.get("property_sub_type") or "",
+                "occupier_name":     p.get("owner_name", ""),
+                "mobile":            mobile,
+                "aadhaar":           aadhaar,
+                "property_address":  p.get("address", ""),
+                "area_sqm":          p.get("carpet_area_sqm", 0),
+                "floor":             (p.get("units") or [{}])[0].get("floor", "") if p.get("units") else "",
+                "year_built":        p.get("year_built", ""),
+                "construction_type": ct_name,
+                "usage":             usage_name,
+                "built_up_area":     p.get("carpet_area_sqm", 0),
+                "rate":              z_obj.get("base_rate", 0),
+                "alv":               round(float(comp.get("alv") or 0), 2),
+                "rv":                round(float(comp.get("rv") or 0), 2),
+                "education_tax":     round(education, 2),
+                "employment_tax":    round(employment, 2),
+                "tree_tax":          round(tree, 2),
+                "fire_tax":          round(fire, 2),
+                "sanitation_tax":    round(sanitation, 2),
+                "environment_tax":   round(environment, 2),
+                "street_light_tax":  round(street_light, 2),
+                "total_tax":         round(float(comp.get("total_tax") or 0), 2),
+            }
+            rows.append(row)
+            totals["alv"]          += row["alv"]
+            totals["rv"]           += row["rv"]
+            totals["education"]    += row["education_tax"]
+            totals["employment"]   += row["employment_tax"]
+            totals["tree"]         += row["tree_tax"]
+            totals["fire"]         += row["fire_tax"]
+            totals["sanitation"]   += row["sanitation_tax"]
+            totals["environment"]  += row["environment_tax"]
+            totals["street_light"] += row["street_light_tax"]
+            totals["total_tax"]    += row["total_tax"]
+        return {
+            "count": len(rows),
+            "ward_label": ward_label,
+            "zone_label": zone_label,
+            "rows": rows,
+            "totals": {k: round(v, 2) for k, v in totals.items()},
+        }
 
     @router.get("/reports/summary")
     async def report_summary(_: dict = Depends(get_current_user)):

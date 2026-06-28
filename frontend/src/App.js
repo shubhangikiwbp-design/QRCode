@@ -19,6 +19,7 @@ import PTProperties from "@/pages/pt/PTProperties";
 import PTNotices from "@/pages/pt/PTNotices";
 import PTBills from "@/pages/pt/PTBills";
 import PTReports from "@/pages/pt/PTReports";
+import PTArrears from "@/pages/pt/PTArrears";
 import "@/App.css";
 
 function Protected({ children }) {
@@ -66,6 +67,9 @@ export default function App() {
             <Route path="/pt/properties" element={<PTProperties />} />
             <Route path="/pt/notices" element={<PTNotices />} />
             <Route path="/pt/bills" element={<PTBills />} />
+            <Route path="/pt/arrears" element={<PTArrears mode="list" />} />
+            <Route path="/pt/arrears/new" element={<PTArrears mode="new" />} />
+            <Route path="/pt/arrears/:id" element={<PTArrears mode="list" />} />
             <Route path="/pt/reports" element={<PTReports />} />
           </Route>
 

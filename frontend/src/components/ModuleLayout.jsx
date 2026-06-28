@@ -3,7 +3,7 @@ import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "@/lib/auth";
 import {
   House, FolderSimple, QrCode, MagnifyingGlass, Users as UsersIcon, ListBullets, Scan, SignOut,
-  Buildings, Bank, Receipt, ChartBar, Database, ArrowsLeftRight,
+  Buildings, Bank, Receipt, ChartBar, Database, ArrowsLeftRight, Money, PencilLine,
 } from "@phosphor-icons/react";
 
 const QR_NAV = [
@@ -22,6 +22,8 @@ const PT_NAV = [
   { to: "/pt/properties", label: "Properties", icon: Buildings,  testid: "nav-pt-properties" },
   { to: "/pt/notices",    label: "Notices",    icon: Bank,       testid: "nav-pt-notices" },
   { to: "/pt/bills",      label: "Bills",      icon: Receipt,    testid: "nav-pt-bills" },
+  { to: "/pt/arrears/new", label: "Arrears Entry", icon: Money,    testid: "nav-pt-arrears-new" },
+  { to: "/pt/arrears",    label: "Arrears Edit",  icon: PencilLine, testid: "nav-pt-arrears" },
   { to: "/pt/reports",    label: "Reports",    icon: ChartBar,   testid: "nav-pt-reports",    roles: ["super_admin", "admin"] },
 ];
 
