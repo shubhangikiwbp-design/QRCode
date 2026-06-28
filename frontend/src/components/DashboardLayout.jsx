@@ -3,6 +3,7 @@ import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "@/lib/auth";
 import {
   House, FolderSimple, QrCode, MagnifyingGlass, Users as UsersIcon, ListBullets, Scan, SignOut,
+  Buildings, Bank, Receipt, ChartBar, Database,
 } from "@phosphor-icons/react";
 
 const NAV = [
@@ -15,10 +16,20 @@ const NAV = [
   { to: "/logs", label: "Audit Logs", icon: ListBullets, testid: "nav-logs", roles: ["super_admin", "admin"] },
 ];
 
+const PT_NAV = [
+  { to: "/pt", label: "PT Dashboard", icon: ChartBar, testid: "nav-pt-dashboard" },
+  { to: "/pt/masters", label: "Masters", icon: Database, testid: "nav-pt-masters", roles: ["super_admin", "admin"] },
+  { to: "/pt/properties", label: "Properties", icon: Buildings, testid: "nav-pt-properties" },
+  { to: "/pt/notices", label: "Notices", icon: Bank, testid: "nav-pt-notices" },
+  { to: "/pt/bills", label: "Bills", icon: Receipt, testid: "nav-pt-bills" },
+  { to: "/pt/reports", label: "Reports", icon: ChartBar, testid: "nav-pt-reports", roles: ["super_admin", "admin"] },
+];
+
 export default function DashboardLayout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const visibleNav = NAV.filter((n) => !n.roles || n.roles.includes(user?.role));
+  const visiblePtNav = PT_NAV.filter((n) => !n.roles || n.roles.includes(user?.role));
 
   return (
     <div className="min-h-screen grid" style={{ gridTemplateColumns: "260px 1fr" }}>
@@ -36,7 +47,8 @@ export default function DashboardLayout() {
           </div>
         </div>
 
-        <nav className="flex-1 py-4">
+        <nav className="flex-1 py-4 overflow-y-auto">
+          <div className="px-6 mono-label text-zinc-500 mb-2">FILE OPS</div>
           {visibleNav.map((item) => {
             const Icon = item.icon;
             return (
@@ -44,6 +56,29 @@ export default function DashboardLayout() {
                 key={item.to}
                 to={item.to}
                 end={item.to === "/"}
+                data-testid={item.testid}
+                className={({ isActive }) =>
+                  `flex items-center gap-3 px-6 py-3 text-sm font-mono uppercase tracking-wider transition-colors border-l-2 ${
+                    isActive
+                      ? "bg-[#FF4500] text-white border-white"
+                      : "text-zinc-400 border-transparent hover:text-white hover:bg-zinc-900"
+                  }`
+                }
+              >
+                <Icon size={18} weight="regular" />
+                {item.label}
+              </NavLink>
+            );
+          })}
+
+          <div className="px-6 mono-label text-zinc-500 mb-2 mt-6">PROPERTY TAX</div>
+          {visiblePtNav.map((item) => {
+            const Icon = item.icon;
+            return (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                end={item.to === "/pt"}
                 data-testid={item.testid}
                 className={({ isActive }) =>
                   `flex items-center gap-3 px-6 py-3 text-sm font-mono uppercase tracking-wider transition-colors border-l-2 ${

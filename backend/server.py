@@ -671,6 +671,15 @@ async def root():
 
 app.include_router(api)
 
+# Property Tax module
+from pt_module import build_pt_router
+pt_router, pt_seed = build_pt_router(db, get_current_user, require_role, log_activity)
+app.include_router(pt_router)
+
+@app.on_event("startup")
+async def startup_pt():
+    await pt_seed()
+
 @app.on_event("shutdown")
 async def shutdown():
     client.close()

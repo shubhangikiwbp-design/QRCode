@@ -12,6 +12,12 @@ import Scanner from "@/pages/Scanner";
 import Search from "@/pages/Search";
 import Users from "@/pages/Users";
 import Logs from "@/pages/Logs";
+import PTDashboard from "@/pages/pt/PTDashboard";
+import PTMasters from "@/pages/pt/PTMasters";
+import PTProperties from "@/pages/pt/PTProperties";
+import PTNotices from "@/pages/pt/PTNotices";
+import PTBills from "@/pages/pt/PTBills";
+import PTReports from "@/pages/pt/PTReports";
 import "@/App.css";
 
 function Protected({ children }) {
@@ -45,6 +51,12 @@ export default function App() {
             <Route path="/search" element={<Search />} />
             <Route path="/users" element={<Users />} />
             <Route path="/logs" element={<Logs />} />
+            <Route path="/pt" element={<PTDashboard />} />
+            <Route path="/pt/masters" element={<PTMasters />} />
+            <Route path="/pt/properties" element={<PTProperties />} />
+            <Route path="/pt/notices" element={<PTNotices />} />
+            <Route path="/pt/bills" element={<PTBills />} />
+            <Route path="/pt/reports" element={<PTReports />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
