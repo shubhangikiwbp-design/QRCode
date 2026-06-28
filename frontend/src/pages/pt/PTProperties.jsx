@@ -482,7 +482,10 @@ export default function PTProperties() {
           const fy = new Date().getFullYear();
           await ptApi.notices.generate(data.id, fy);
           toast.success("Special notice generated");
-        } catch (e) { /* non-fatal */ }
+        } catch (e) {
+          console.error("Auto special-notice generation failed", e);
+          toast.error("Property saved but auto-notice failed — generate it manually from Notices.");
+        }
       }
     }
     setEditing(null);

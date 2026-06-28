@@ -90,7 +90,7 @@ function DraftAssessment({ data }) {
           </thead>
           <tbody>
             {(data.rows || []).map((r, i) => (
-              <tr key={i} className={i % 2 === 0 ? "bg-white" : "bg-zinc-50"}>
+              <tr key={r.property_no || `row-${i}`} className={i % 2 === 0 ? "bg-white" : "bg-zinc-50"}>
                 {DRAFT_COLS.map((c) => (
                   <td key={c.k} className={`border border-zinc-200 p-1 align-top ${["area_sqm","year_built","built_up_area","rate","alv","rv","s_no"].includes(c.k) ? "text-right font-mono" : ""}`}>
                     {c.k === "area_sqm" || c.k === "built_up_area" || c.k === "rate" || c.k === "alv" || c.k === "rv" ? num(r[c.k]) : (r[c.k] ?? "")}
