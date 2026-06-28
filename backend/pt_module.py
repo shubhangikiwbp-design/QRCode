@@ -665,4 +665,109 @@ def build_pt_router(db, get_current_user, require_role, log_activity) -> APIRout
             "total_outstanding": round(demand - collected, 2),
         }
 
-    return router, seed_defaults
+    # =====================================================================
+    # ADDITIONAL MASTERS (per Maharashtra Municipal Property Tax)
+    # =====================================================================
+
+    # Generic CRUD helper for a flat master collection.
+    def add_master(path: str, coll_name: str, allowed_fields: list, label: str):
+        coll = db[coll_name]
+
+        @router.get(f"/{path}", name=f"{coll_name}_list")
+        async def _list(_: dict = Depends(get_current_user)):
+            return await coll.find({}, {"_id": 0}).limit(5000).to_list(5000)
+
+        @router.post(f"/{path}", name=f"{coll_name}_create")
+        async def _create(data: dict, _: dict = Depends(require_role("super_admin", "admin"))):
+            doc = {k: data.get(k) for k in allowed_fields}
+            doc["id"] = str(uuid.uuid4())
+            doc["created_at"] = utcnow_iso()
+            await coll.insert_one(doc)
+            doc.pop("_id", None)
+            return doc
+
+        @router.put(f"/{path}/{{id}}", name=f"{coll_name}_update")
+        async def _update(id: str, data: dict, _: dict = Depends(require_role("super_admin", "admin"))):
+            patch = {k: data.get(k) for k in allowed_fields if k in data}
+            patch["updated_at"] = utcnow_iso()
+            r = await coll.update_one({"id": id}, {"$set": patch})
+            if r.matched_count == 0:
+                raise HTTPException(status_code=404, detail=f"{label} not found")
+            return {"ok": True}
+
+        @router.delete(f"/{path}/{{id}}", name=f"{coll_name}_delete")
+        async def _delete(id: str, _: dict = Depends(require_role("super_admin", "admin"))):
+            r = await coll.delete_one({"id": id})
+            if r.deleted_count == 0:
+                raise HTTPException(status_code=404, detail=f"{label} not found")
+            return {"ok": True}
+
+    add_master("standard-rates",      "pt_standard_rates",
+               ["name", "year", "usage_type_id", "construction_type_id", "rate_per_sqm", "remarks"], "Standard Rate")
+    add_master("exemptions",          "pt_exemptions",
+               ["name", "category", "exemption_pct", "max_amount", "remarks"], "Exemption")
+    add_master("factor-entries",      "pt_factor_entries",
+               ["name", "factor_type", "value", "remarks"], "Factor")
+    add_master("ready-reckoner",      "pt_ready_reckoner",
+               ["area_name", "year", "residential_rate", "commercial_rate", "industrial_rate", "remarks"], "Ready Reckoner Rate")
+    add_master("receipt-rebates",     "pt_receipt_rebates",
+               ["name", "rebate_pct", "valid_from", "valid_to", "remarks"], "Receipt Rebate")
+    add_master("service-charges",     "pt_service_charges",
+               ["service_name", "usage_type_id", "rate", "unit", "remarks"], "Service Charge")
+    add_master("taxes",               "pt_taxes",
+               ["tax_code", "tax_name", "calculation_type", "default_rate", "remarks"], "Tax Master")
+    add_master("tax-details",         "pt_tax_details",
+               ["tax_master_id", "slab_from", "slab_to", "rate", "remarks"], "Tax Master Detail")
+    add_master("valuation-formulas",  "pt_valuation_formulas",
+               ["formula_code", "formula_name", "formula_expression", "description"], "Valuation Formula")
+    add_master("valuation-mappings",  "pt_valuation_mappings",
+               ["formula_id", "ward_id", "zone_id", "usage_type_id", "effective_from", "remarks"], "Valuation Formula Mapping")
+    add_master("rebates",             "pt_rebates",
+               ["scheme_name", "rebate_pct", "valid_from", "valid_to", "conditions", "remarks"], "Rebate")
+    add_master("construction-classes", "pt_construction_classes",
+               ["class_code", "class_name", "factor", "remarks"], "Construction Class")
+    add_master("abhay-yojna",         "pt_abhay_yojna",
+               ["scheme_name", "waiver_pct", "interest_waiver_pct", "valid_from", "valid_to", "conditions", "remarks"], "Abhay Yojna")
+
+    # ---- Seed a couple of sensible defaults for the new masters ----
+    async def seed_extra_masters():
+        if await db.pt_exemptions.count_documents({}) == 0:
+            await db.pt_exemptions.insert_many([
+                {"id": str(uuid.uuid4()), "name": "Senior Citizen",     "category": "individual",   "exemption_pct": 30, "max_amount": 5000,  "created_at": utcnow_iso()},
+                {"id": str(uuid.uuid4()), "name": "Ex-Serviceman",      "category": "individual",   "exemption_pct": 50, "max_amount": 10000, "created_at": utcnow_iso()},
+                {"id": str(uuid.uuid4()), "name": "Widow",              "category": "individual",   "exemption_pct": 30, "max_amount": 5000,  "created_at": utcnow_iso()},
+                {"id": str(uuid.uuid4()), "name": "Disabled (40%+)",    "category": "individual",   "exemption_pct": 50, "max_amount": 10000, "created_at": utcnow_iso()},
+                {"id": str(uuid.uuid4()), "name": "Government Property","category": "institutional","exemption_pct": 100,"max_amount": None,  "created_at": utcnow_iso()},
+            ])
+        if await db.pt_taxes.count_documents({}) == 0:
+            await db.pt_taxes.insert_many([
+                {"id": str(uuid.uuid4()), "tax_code": "GEN", "tax_name": "General Tax",     "calculation_type": "percentage", "default_rate": 12, "created_at": utcnow_iso()},
+                {"id": str(uuid.uuid4()), "tax_code": "WAT", "tax_name": "Water Tax",       "calculation_type": "percentage", "default_rate": 5,  "created_at": utcnow_iso()},
+                {"id": str(uuid.uuid4()), "tax_code": "SEW", "tax_name": "Sewerage Tax",    "calculation_type": "percentage", "default_rate": 3,  "created_at": utcnow_iso()},
+                {"id": str(uuid.uuid4()), "tax_code": "EDU", "tax_name": "Education Cess",  "calculation_type": "percentage", "default_rate": 2,  "created_at": utcnow_iso()},
+                {"id": str(uuid.uuid4()), "tax_code": "TRE", "tax_name": "Tree Cess",       "calculation_type": "percentage", "default_rate": 1,  "created_at": utcnow_iso()},
+            ])
+        if await db.pt_valuation_formulas.count_documents({}) == 0:
+            await db.pt_valuation_formulas.insert_many([
+                {"id": str(uuid.uuid4()), "formula_code": "ALV-STD",   "formula_name": "Standard ALV",    "formula_expression": "area * base_rate * construction_factor * usage_factor * (1 - age_dep_pct/100)", "description": "Annual Letting Value as per MMC Act", "created_at": utcnow_iso()},
+                {"id": str(uuid.uuid4()), "formula_code": "RV-STD",    "formula_name": "Standard RV",     "formula_expression": "ALV * (1 - statutory_deduction_pct/100)",                                          "description": "Rateable Value (post statutory deduction)", "created_at": utcnow_iso()},
+                {"id": str(uuid.uuid4()), "formula_code": "CV-MARKET", "formula_name": "Capital Value",   "formula_expression": "area * ready_reckoner_rate * usage_factor * construction_factor",                  "description": "Capital Value method (alternative)",         "created_at": utcnow_iso()},
+            ])
+        if await db.pt_rebates.count_documents({}) == 0:
+            await db.pt_rebates.insert_many([
+                {"id": str(uuid.uuid4()), "scheme_name": "Early Payment (Apr-Jun)", "rebate_pct": 10, "valid_from": "2025-04-01", "valid_to": "2025-06-30", "conditions": "Pay full year before 30 June", "created_at": utcnow_iso()},
+                {"id": str(uuid.uuid4()), "scheme_name": "Online Payment",          "rebate_pct": 2,  "valid_from": "2025-04-01", "valid_to": "2026-03-31", "conditions": "Online digital payments only",  "created_at": utcnow_iso()},
+            ])
+        if await db.pt_construction_classes.count_documents({}) == 0:
+            await db.pt_construction_classes.insert_many([
+                {"id": str(uuid.uuid4()), "class_code": "A", "class_name": "Class A — Pucca RCC",       "factor": 1.00, "created_at": utcnow_iso()},
+                {"id": str(uuid.uuid4()), "class_code": "B", "class_name": "Class B — Load Bearing",    "factor": 0.85, "created_at": utcnow_iso()},
+                {"id": str(uuid.uuid4()), "class_code": "C", "class_name": "Class C — Semi-Pucca",      "factor": 0.65, "created_at": utcnow_iso()},
+                {"id": str(uuid.uuid4()), "class_code": "D", "class_name": "Class D — Kuccha / Tin",    "factor": 0.40, "created_at": utcnow_iso()},
+            ])
+
+    async def seed_all():
+        await seed_defaults()
+        await seed_extra_masters()
+
+    return router, seed_all
